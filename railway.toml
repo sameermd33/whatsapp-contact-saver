@@ -1,0 +1,8 @@
+[build]
+  builder = "nixpacks"
+
+[deploy]
+  start_cmd = "node unknown.js"
+
+[build.environment]
+  NODE_ENV = "production"

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: whatsapp-contact-saver
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GMAIL_USER
+        fromService:
+          name: whatsapp-contact-saver
+          type: env
+          key: GMAIL_USER
+      - key: GMAIL_APP_PASSWORD
+        fromService:
+          name: whatsapp-contact-saver
+          type: secret
+          key: GMAIL_APP_PASSWORD
+      - key: RECIPIENT_EMAIL
+        fromService:
+          name: whatsapp-contact-saver
+          type: env
+          key: RECIPIENT_EMAIL

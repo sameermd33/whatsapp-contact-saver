@@ -1,0 +1,23 @@
+{
+  "name": "whatsapp-contact-saver",
+  "version": "1.0.0",
+  "description": "WhatsApp Contact Saver - Saves new WhatsApp contacts and sends them via email",
+  "main": "unknown.js",
+  "scripts": {
+    "start": "node unknown.js",
+    "dev": "nodemon unknown.js"
+  },
+  "keywords": ["whatsapp", "contact", "saver", "automation"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.0.3",
+    "nodemailer": "^7.0.5",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.32.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

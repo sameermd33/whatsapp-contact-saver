@@ -1,0 +1,20 @@
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# Session data
+.wwebjs_auth/
+
+# Logs
+logs
+*.log
+
+# Contact files
+contacts.csv
+contacts.vcf
+
+# System Files
+.DS_Store
+Thumbs.db
