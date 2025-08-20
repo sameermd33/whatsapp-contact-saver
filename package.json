@@ -5,7 +5,8 @@
   "main": "unknown.js",
   "scripts": {
     "start": "node unknown.js",
-    "dev": "nodemon unknown.js"
+    "dev": "nodemon unknown.js",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "keywords": ["whatsapp", "contact", "saver", "automation"],
   "author": "",
@@ -16,7 +17,7 @@
     "nodemailer": "^7.0.5",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.32.0",
-    "puppeteer": "^22.15.0"
+    "puppeteer": "^24.9.0"
   },
   "engines": {
     "node": ">=18.0.0"
