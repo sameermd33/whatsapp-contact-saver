@@ -5,6 +5,7 @@ const nodemailer = require('nodemailer');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 require('dotenv').config();
 
 // Initialize Express
@@ -173,7 +174,13 @@ app.listen(PORT, () => {
 // Track runtime start time
 const startTime = Math.floor(Date.now() / 1000);
 
+// Ensure Puppeteer cache dir default on Render
+if (!process.env.PUPPETEER_CACHE_DIR) {
+    process.env.PUPPETEER_CACHE_DIR = '/opt/render/.cache/puppeteer';
+}
+
 // WhatsApp client
+let attemptedChromeInstall = false;
 function resolveChromeExecutable() {
     // 1) If provided explicitly via env, use it
     if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
@@ -183,20 +190,31 @@ function resolveChromeExecutable() {
         const p = puppeteer.executablePath();
         if (p && fs.existsSync(p)) return p;
     } catch (_) {}
+    const cacheRoot = process.env.PUPPETEER_CACHE_DIR || '/opt/render/.cache/puppeteer';
+    const channels = ['chrome', 'chromium'];
+    const linuxDirs = ['chrome-linux64', 'chrome-linux'];
     const bases = [
-        path.join(process.env.PUPPETEER_CACHE_DIR || '/opt/render/.cache/puppeteer', 'chrome'),
-        path.join('/root/.cache/puppeteer', 'chrome'),
-        path.join('/home/render/.cache/puppeteer', 'chrome'),
-        path.join(process.cwd(), '.cache', 'puppeteer', 'chrome')
+        (b) => path.join(cacheRoot, b),
+        (b) => path.join('/root/.cache/puppeteer', b),
+        (b) => path.join('/home/render/.cache/puppeteer', b),
+        (b) => path.join(process.cwd(), '.cache', 'puppeteer', b)
     ];
-    for (const base of bases) {
-        try {
-            const versions = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
-            for (const ver of versions.sort().reverse()) {
-                const candidate = path.join(base, ver, 'chrome-linux64', 'chrome');
-                if (fs.existsSync(candidate)) return candidate;
+    for (const ch of channels) {
+        for (const baseFn of bases) {
+            const base = baseFn(ch);
+            try {
+                const versions = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
+                for (const ver of versions.sort().reverse()) {
+                    for (const linuxDir of linuxDirs) {
+                        const candidate = path.join(base, ver, linuxDir, 'chrome');
+                        if (fs.existsSync(candidate)) return candidate;
+                    }
+                }
+            } catch (e) {
+                // uncomment for deep debug
+                // console.log('search skip:', e?.message);
             }
-        } catch (_) {}
+        }
     }
     console.warn('⚠️ Could not resolve Chrome executable path; falling back to system default');
     return undefined;
@@ -208,6 +226,19 @@ async function startClient(force = false) {
         console.log('🧭 Chrome executable path:', chromeExecPath, 'exists:', chromeExecPath ? fs.existsSync(chromeExecPath) : 'n/a');
 
         if (!chromeExecPath) {
+            if (!attemptedChromeInstall) {
+                attemptedChromeInstall = true;
+                try {
+                    console.warn('🛠️ Installing Chrome/Chromium via @puppeteer/browsers...');
+                    execSync(`npx -y @puppeteer/browsers install chrome@stable --path ${process.env.PUPPETEER_CACHE_DIR}`, { stdio: 'inherit' });
+                    execSync(`npx -y @puppeteer/browsers install chromium@stable --path ${process.env.PUPPETEER_CACHE_DIR}` , { stdio: 'inherit' });
+                } catch (e) {
+                    console.error('❌ Failed to install Chrome at runtime:', e?.message || String(e));
+                }
+                // try again shortly after install
+                setTimeout(() => startClient(true), 5000);
+                return;
+            }
             if (!force) console.warn('⏳ Chrome path not resolved yet; retrying in 30s...');
             setTimeout(() => startClient(), 30000);
             return;
