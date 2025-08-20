@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node unknown.js",
     "dev": "nodemon unknown.js",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "postinstall": "npx @puppeteer/browsers install chrome@stable --path /opt/render/.cache/puppeteer"
   },
   "keywords": ["whatsapp", "contact", "saver", "automation"],
   "author": "",
