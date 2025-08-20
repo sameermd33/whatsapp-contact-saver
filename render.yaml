@@ -4,19 +4,15 @@ services:
     env: node
     buildCommand: npm install
     startCommand: npm start
+    plan: free
+    disk:
+      name: session-data
+      mountPath: /opt/render/project/src/.wwebjs_auth
+      sizeGB: 1
     envVars:
       - key: GMAIL_USER
-        fromService:
-          name: whatsapp-contact-saver
-          type: env
-          key: GMAIL_USER
+        value: ""
       - key: GMAIL_APP_PASSWORD
-        fromService:
-          name: whatsapp-contact-saver
-          type: secret
-          key: GMAIL_APP_PASSWORD
+        value: ""
       - key: RECIPIENT_EMAIL
-        fromService:
-          name: whatsapp-contact-saver
-          type: env
-          key: RECIPIENT_EMAIL
+        value: ""
