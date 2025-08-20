@@ -259,6 +259,35 @@ async function startClient(force = false) {
             console.error('❌ Client error:', err);
         });
 
+        // Handle incoming messages
+        client.on('message', async msg => {
+            if (msg.timestamp < startTime) return;
+
+            try {
+                const contact = await msg.getContact();
+                const number = contact.number;
+                const profileName = contact.pushname || 'Unknown';
+
+                if ((contact.name === number || !contact.name) && !savedContacts.has(number)) {
+                    const name = `Customer ${profileName}`;
+                    const contactEntry = { name, number };
+
+                    savedContacts.add(number);
+                    contactsBatch.push(contactEntry);
+                    newContactsCount++;
+
+                    console.log(`💾 New contact: ${name} (${number})`);
+                    console.log(`📊 Batch size: ${contactsBatch.length}, Total contacts: ${savedContacts.size}`);
+
+                    if (newContactsCount >= 7) {
+                        await sendBatchEmail();
+                    }
+                }
+            } catch (err) {
+                console.error('❌ Error processing message:', err);
+            }
+        });
+
         await client.initialize();
     } catch (err) {
         console.error('❌ Failed to initialize WhatsApp client, retrying in 30s:', err?.message || err);
@@ -304,35 +333,3 @@ async function sendBatchEmail() {
         isSendingEmail = false;
     }
 }
-
-client.on('message', async msg => {
-    if (msg.timestamp < startTime) return;
-
-    try {
-        const contact = await msg.getContact();
-        const number = contact.number;
-        const profileName = contact.pushname || "Unknown";
-
-        if ((contact.name === number || !contact.name) && !savedContacts.has(number)) {
-            const name = `Customer ${profileName}`;
-            const contactEntry = { name, number };
-
-            // Add to memory
-            savedContacts.add(number);
-            contactsBatch.push(contactEntry);
-            newContactsCount++;
-            
-            console.log(`💾 New contact: ${name} (${number})`);
-            console.log(`📊 Batch size: ${contactsBatch.length}, Total contacts: ${savedContacts.size}`);
-
-            // Send email if we have 7 or more new contacts
-            if (newContactsCount >= 7) {
-                await sendBatchEmail();
-            }
-        }
-    } catch (err) {
-        console.error("❌ Error processing message:", err);
-    }
-});
-
-client.initialize();
