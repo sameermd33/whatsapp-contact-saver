@@ -3,6 +3,8 @@ const qrcode = require('qrcode-terminal');
 const express = require('express');
 const nodemailer = require('nodemailer');
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 // Initialize Express
@@ -156,12 +158,39 @@ app.listen(PORT, () => {
 const startTime = Math.floor(Date.now() / 1000);
 
 // WhatsApp client
+function resolveChromeExecutable() {
+    try {
+        const p = puppeteer.executablePath();
+        if (p && fs.existsSync(p)) return p;
+    } catch (_) {}
+    const base = '/opt/render/.cache/puppeteer/chrome';
+    try {
+        const versions = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
+        for (const ver of versions.sort().reverse()) {
+            const candidate = path.join(base, ver, 'chrome-linux64', 'chrome');
+            if (fs.existsSync(candidate)) return candidate;
+        }
+    } catch (_) {}
+    console.warn('⚠️ Could not resolve Chrome executable path; falling back to system default');
+    return undefined;
+}
+
+const chromeExecPath = resolveChromeExecutable();
+console.log('🧭 Chrome executable path:', chromeExecPath, 'exists:', chromeExecPath ? fs.existsSync(chromeExecPath) : 'n/a');
+
 client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-        executablePath: puppeteer.executablePath()
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-zygote',
+            '--single-process'
+        ],
+        executablePath: chromeExecPath
     }
 });
 
