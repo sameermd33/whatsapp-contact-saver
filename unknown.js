@@ -159,6 +159,10 @@ const startTime = Math.floor(Date.now() / 1000);
 
 // WhatsApp client
 function resolveChromeExecutable() {
+    // 1) If provided explicitly via env, use it
+    if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+        return process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
     try {
         const p = puppeteer.executablePath();
         if (p && fs.existsSync(p)) return p;
