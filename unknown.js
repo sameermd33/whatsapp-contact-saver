@@ -135,6 +135,22 @@ app.get('/healthz', (_req, res) => {
     res.status(200).json({ ok: true, connected: Boolean(client && client.info) });
 });
 
+// Who am I endpoint
+app.get('/me', (_req, res) => {
+    const info = client && client.info ? client.info : null;
+    res.json({ ok: true, info });
+});
+
+// Manual init/reinit endpoint
+app.post('/init', async (_req, res) => {
+    try {
+        await startClient(true);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e?.message || String(e) });
+    }
+});
+
 // Endpoint to manually trigger sending the current batch
 app.get('/send-batch', async (req, res) => {
     if (contactsBatch.length === 0) {
@@ -179,37 +195,79 @@ function resolveChromeExecutable() {
     return undefined;
 }
 
-const chromeExecPath = resolveChromeExecutable();
-console.log('🧭 Chrome executable path:', chromeExecPath, 'exists:', chromeExecPath ? fs.existsSync(chromeExecPath) : 'n/a');
+async function startClient(force = false) {
+    try {
+        const chromeExecPath = resolveChromeExecutable();
+        console.log('🧭 Chrome executable path:', chromeExecPath, 'exists:', chromeExecPath ? fs.existsSync(chromeExecPath) : 'n/a');
 
-client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--no-zygote',
-            '--single-process'
-        ],
-        executablePath: chromeExecPath
+        if (!chromeExecPath) {
+            if (!force) console.warn('⏳ Chrome path not resolved yet; retrying in 30s...');
+            setTimeout(() => startClient(), 30000);
+            return;
+        }
+
+        const authPath = process.env.WWEBJS_AUTH_PATH || '.wwebjs_auth';
+        client = new Client({
+            authStrategy: new LocalAuth({
+                clientId: 'primary',
+                dataPath: authPath
+            }),
+            puppeteer: {
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--no-zygote',
+                    '--single-process'
+                ],
+                executablePath: chromeExecPath
+            }
+        });
+
+        client.on('qr', qr => {
+            console.log('📱 Scan this QR to login:');
+            qrcode.generate(qr, { small: true });
+        });
+
+        client.on('ready', () => {
+            console.log('✅ WhatsApp is ready!');
+            try {
+                const me = client.info?.wid?._serialized || client.info?.wid?.user || 'unknown';
+                console.log('👤 Logged in as:', me);
+                const allowed = (process.env.ALLOWED_WA_USER || '').trim();
+                if (allowed) {
+                    const normalized = me.replace(/[^\d]/g, '');
+                    const allowedNorm = allowed.replace(/[^\d]/g, '');
+                    if (normalized !== allowedNorm) {
+                        console.error('❌ Logged in account does not match ALLOWED_WA_USER. Expected:', allowed, 'Got:', me);
+                    }
+                }
+            } catch (_) {}
+        });
+
+        client.on('disconnected', (reason) => {
+            console.warn('⚠️ WhatsApp disconnected:', reason);
+        });
+
+        client.on('auth_failure', (msg) => {
+            console.error('❌ Auth failure:', msg);
+        });
+
+        client.on('error', (err) => {
+            console.error('❌ Client error:', err);
+        });
+
+        await client.initialize();
+    } catch (err) {
+        console.error('❌ Failed to initialize WhatsApp client, retrying in 30s:', err?.message || err);
+        setTimeout(() => startClient(), 30000);
     }
-});
+}
 
-client.on('qr', qr => {
-    console.log("📱 Scan this QR to login:");
-    qrcode.generate(qr, { small: true });
-});
-
-client.on('ready', () => {
-    console.log('✅ WhatsApp is ready!');
-});
-
-client.on('disconnected', (reason) => {
-    console.warn('⚠️ WhatsApp disconnected:', reason);
-});
+// kick off client initialization (with retries)
+startClient();
 
 async function sendBatchEmail() {
     if (contactsBatch.length === 0 || isSendingEmail) return;
