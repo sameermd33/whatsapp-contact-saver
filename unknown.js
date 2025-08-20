@@ -183,14 +183,21 @@ function resolveChromeExecutable() {
         const p = puppeteer.executablePath();
         if (p && fs.existsSync(p)) return p;
     } catch (_) {}
-    const base = '/opt/render/.cache/puppeteer/chrome';
-    try {
-        const versions = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
-        for (const ver of versions.sort().reverse()) {
-            const candidate = path.join(base, ver, 'chrome-linux64', 'chrome');
-            if (fs.existsSync(candidate)) return candidate;
-        }
-    } catch (_) {}
+    const bases = [
+        path.join(process.env.PUPPETEER_CACHE_DIR || '/opt/render/.cache/puppeteer', 'chrome'),
+        path.join('/root/.cache/puppeteer', 'chrome'),
+        path.join('/home/render/.cache/puppeteer', 'chrome'),
+        path.join(process.cwd(), '.cache', 'puppeteer', 'chrome')
+    ];
+    for (const base of bases) {
+        try {
+            const versions = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
+            for (const ver of versions.sort().reverse()) {
+                const candidate = path.join(base, ver, 'chrome-linux64', 'chrome');
+                if (fs.existsSync(candidate)) return candidate;
+            }
+        } catch (_) {}
+    }
     console.warn('⚠️ Could not resolve Chrome executable path; falling back to system default');
     return undefined;
 }

@@ -2,7 +2,7 @@ services:
   - type: web
     name: whatsapp-contact-saver
     env: node
-    buildCommand: npm install
+    buildCommand: npm ci && npx puppeteer browsers install chrome
     startCommand: npm start
     plan: free
     disk:
@@ -16,5 +16,5 @@ services:
         value: ""
       - key: RECIPIENT_EMAIL
         value: ""
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: "/opt/render/.cache/puppeteer/chrome/linux-139.0.7258.68/chrome-linux64/chrome"
+      - key: PUPPETEER_CACHE_DIR
+        value: "/opt/render/.cache/puppeteer"
